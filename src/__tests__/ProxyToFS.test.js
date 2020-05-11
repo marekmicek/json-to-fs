@@ -6,7 +6,6 @@ const imageDataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYA
 const textData = 'This is a text file';
 
 const setupFS = async () => {
-
     const context = {};
     BrowserFS.install(context);
 
@@ -57,10 +56,87 @@ it('should allow to write files by Object.assign', async () => {
     const store = new ProxyToFS({ fs, path: '/' });
 
     const newFiles = {
-        'new-content.md': 'This is another file'
+        file: {
+            'new-content.md': 'This is another file'
+        }
     };
 
     Object.assign(store, newFiles);
 
-    expect(await store.file['new-content.md'].asString).toEqual(newFiles['new-content.md']);
+    await store.$promise;
+
+    expect(await store.file['new-content.md'].asString).toEqual(newFiles.file['new-content.md']);
+});
+
+it('should allow to add a new text file', async () => {
+    const fs = await setupFS();
+
+    const store = new ProxyToFS({ fs, path: '/' });
+
+    const textContent = 'The new content file'
+
+    const fileName = '/file/content-new.md';
+    store.file['content-new.md'] = textContent;
+
+    await store.file['content-new.md'].$promise;
+
+    const buffer = await util.promisify(fs.readFile)(fileName);
+
+    const actual = buffer.toString('utf-8');
+    const expected = textContent;
+
+    expect(actual).toBe(expected);
+});
+
+it('should allow to remove a file', async () => {
+    const fs = await setupFS();
+    const store = new ProxyToFS({ fs, path: '/' });
+
+    const existingFileName = 'file/content.md';
+    const stat = util.promisify(fs.stat);
+
+    const checkIfExists = async () => {
+        try {
+            return !!await stat(existingFileName)
+        } catch (err) {
+            if (err.code === 'ENOENT') {
+                return false;
+            }
+
+            throw err;
+        }
+    };
+
+    expect(await checkIfExists()).toBe(true);
+
+    delete store.file['content.md'];
+
+    await store.$promise;
+
+    expect(await checkIfExists()).toBe(false);
+});
+
+it('should generate proper json file', async () => {
+    const fs = await setupFS();
+    const store = new ProxyToFS({ fs, path: '/' });
+
+    const actual = await store.toJson();
+    const expected = {
+        file: {
+            'content.md': textData,
+            'image.png': imageDataUrl
+        }
+    };
+
+    expect(actual).toStrictEqual(expected);
+});
+
+it('should list the files', async () => {
+    const fs = await setupFS();
+    const store = new ProxyToFS({ fs, path: '/' });
+
+    const expected = ['content.md', 'image.png'];
+    const actual = Object.keys(store.file);
+
+    expect(actual).toStrictEqual(expected);
 });
