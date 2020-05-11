@@ -1,3 +1,5 @@
+[![CircleCI](https://circleci.com/gh/marekmicek/proxy-to-fs.svg?style=shield)](https://circleci.com/gh/marekmicek/proxy-to-fs)
+
 ## Description
 
 The way of accessing the File System as close as possible to manipulating JS object. Implemented using Proxy.
