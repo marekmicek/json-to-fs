@@ -1,4 +1,13 @@
 import asDataURL from './asDataURL';
-import asString from './asString';
+import asText from './asText';
 
-export { asDataURL, asString };
+export { asDataURL, asText };
+
+import { lookup } from 'mime-types';
+
+export default (data, fileName) => {    
+    const mimeType = lookup(fileName);
+    const isText = mimeType.indexOf('text') === 0;
+
+    return isText ? asText(data, fileName) : asDataURL(data, fileName);
+}

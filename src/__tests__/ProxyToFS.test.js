@@ -39,7 +39,7 @@ it('should read the text file correctly', async () => {
 
     const store = new ProxyToFS({ fs, path: '/' });
 
-    expect(await store.file['content.md'].asString).toEqual(textData);
+    expect(await store.file['content.md'].asText).toEqual(textData);
 });
 
 it('should read the image file correctly', async () => {
@@ -65,7 +65,7 @@ it('should allow to write files by Object.assign', async () => {
 
     await store.$promise;
 
-    expect(await store.file['new-content.md'].asString).toEqual(newFiles.file['new-content.md']);
+    expect(await store.file['new-content.md'].asText).toEqual(newFiles.file['new-content.md']);
 });
 
 it('should allow to add a new text file', async () => {
@@ -111,7 +111,7 @@ it('should allow to remove a file', async () => {
 
     delete store.file['content.md'];
 
-    await store.$promise;
+    await store;
 
     expect(await checkIfExists()).toBe(false);
 });
@@ -136,7 +136,7 @@ it('should list the files', async () => {
     const store = new ProxyToFS({ fs, path: '/' });
 
     const expected = ['content.md', 'image.png'];
-    const actual = Object.keys(store.file);
+    const actual = Object.keys(await store.file);
 
     expect(actual).toStrictEqual(expected);
 });

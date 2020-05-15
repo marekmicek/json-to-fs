@@ -16,10 +16,10 @@ import fs from 'fs'; // or NodeJS fs module or BrowserFS
 const store = new ProxyToFS({ fs, path: '/' });
 
 // read the text file
-const textContent = await store.directory['content.md'].asString;
+const textContent = await store.directory['content.md'].asText;
 
 // alternatively you can provide the entire path
-const theSameTextContent = await store['directory/content.md'].asString;
+const theSameTextContent = await store['directory/content.md'].asText;
 
 // read the binary file as a data: URL
 const dataURL = await store.directory['image.png'].asDataURL;
@@ -71,7 +71,10 @@ await store;
 
 ``` javascript
 // iterating over directory items
-for (const item in store.directory) {
+for (const item in await store.directory) {
 
 }
+
+// get directory items
+Object.keys(await store.directory);
 ```
