@@ -7,7 +7,7 @@ import removeFile from './removeFile';
 import * as handlers from './handlers';
 import * as transformers from './transformers';
 
-let ongoing = [];
+export const ongoing = [];
 let $promise;
 
 const mapToValue = path => {
@@ -52,7 +52,7 @@ const handleReadFile = async (fs, path) => {
 };
 
 export default class ProxyToFS {
-    constructor({ fs, path, context = {} }) {
+    constructor({ fs, path, context = {}, onRead, onWrite, onDelete }) {
         let self;
 
         if (path.slice(-1) !== '/') {
@@ -62,8 +62,17 @@ export default class ProxyToFS {
         return self = new Proxy(this, {
             set: (object, key, value) => {
                 const promise = (async () => {
+                    
+                    if (onWrite) {
+                        const write = await onWrite({ path: path, name: key, value });
+
+                        if (write) {
+                            return;
+                        }
+                    }
+
                     if (typeof value === 'object') {
-                        const dirProxy = new ProxyToFS({ fs, path: path + key + '/', context })
+                        const dirProxy = new ProxyToFS({ fs, path: path + key + '/', context, onRead, onWrite, onDelete })
 
                         for (const item in value) {
                             dirProxy[item] = value[item];
@@ -98,6 +107,16 @@ export default class ProxyToFS {
                     }
 
                     const fn = async () => {
+                        await Promise.all(ongoing);
+
+                        if (onRead) {
+                            const read = await onRead({ path });
+
+                            if (read) {
+                                return read;
+                            }
+                        }
+
                         const isDir_ = await isDir.bind({ fs })(path);
 
                         if (isDir_) {
@@ -118,10 +137,24 @@ export default class ProxyToFS {
                         return;
                     }
 
-                    return new ProxyToFS({ fs, path: path + key + '/', context });
+                    if (typeof key === 'symbol') {
+
+                        return;
+                    }
+
+                    return new ProxyToFS({ fs, path: path + key + '/', context, onRead, onWrite, onDelete });
                 }
             },
             deleteProperty: (object, key) => {
+
+                if (onDelete) {
+                    const handled = onDelete({ path, name: key });
+
+                    if (handled) {
+                        return true;
+                    }
+                }
+
                 const operation = async () => await removeFile.bind({ fs })(path + key);
                 ongoing.push(operation());
 

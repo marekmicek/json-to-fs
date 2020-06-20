@@ -4,5 +4,7 @@ export default function (data) {
     const buf = Buffer.from(data, encoding);
     const string = buf.toString(encoding);
 
-    return string;
+    const result = JSON.parse(string);
+
+    return result;
 }
