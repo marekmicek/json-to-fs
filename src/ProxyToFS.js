@@ -10,6 +10,20 @@ import * as transformers from './transformers';
 export const ongoing = [];
 let $promise;
 
+const setPending = async (path, action, fn) => {
+    const item = { path, action };
+
+    if (!ongoing.length) {
+        item.promise = fn();
+        ongoing.push(item); 
+    } else {
+        await Promise.all(ongoing.map(x => x.promise));
+        ongoing.length = 0;
+        item.promise = fn();
+        ongoing.push(item);
+    }
+}
+
 const mapToValue = path => {
     const name = path.split('/').slice(-2, -1)[0];
 
@@ -56,13 +70,12 @@ export default class ProxyToFS {
         let self;
 
         if (path.slice(-1) !== '/') {
-            throw new Error(`path must end with a '/'`);
+            path += '/';
         }
 
         return self = new Proxy(this, {
             set: (object, key, value) => {
-                const promise = (async () => {
-                    
+                const saveAsync = async () => {
                     if (onWrite) {
                         const write = await onWrite({ path: path, name: key, value });
 
@@ -78,11 +91,11 @@ export default class ProxyToFS {
                             dirProxy[item] = value[item];
                         }
                     } else if (typeof value === 'string') {
-                        await writeFile.bind({ fs })(path + key, value);
+                        await writeFile.bind({ fs })(path + key, value, 'utf8');
                     }
-                })();
+                };
 
-                ongoing.push(promise);
+                setPending(path + key, 'set', saveAsync);
 
                 return true;
             },
@@ -96,7 +109,7 @@ export default class ProxyToFS {
                 }
 
                 if (key === '$promise') {
-                    $promise = Promise.all(ongoing);
+                    $promise = Promise.all(ongoing.map(x => x.promise));
 
                     return $promise;
                 }
@@ -107,7 +120,7 @@ export default class ProxyToFS {
                     }
 
                     const fn = async () => {
-                        await Promise.all(ongoing);
+                        await Promise.all(ongoing.map(x => x.promise));
 
                         if (onRead) {
                             const read = await onRead({ path });
@@ -156,7 +169,11 @@ export default class ProxyToFS {
                 }
 
                 const operation = async () => await removeFile.bind({ fs })(path + key);
-                ongoing.push(operation());
+                ongoing.push({
+                    path: path + key,
+                    action: 'delete',
+                    promise: operation()
+                });
 
                 return true;
             },

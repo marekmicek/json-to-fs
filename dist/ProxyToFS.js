@@ -29,6 +29,23 @@ const ongoing = [];
 exports.ongoing = ongoing;
 let $promise;
 
+const setPending = async (path, action, fn) => {
+  const item = {
+    path,
+    action
+  };
+
+  if (!ongoing.length) {
+    item.promise = fn();
+    ongoing.push(item);
+  } else {
+    await Promise.all(ongoing.map(x => x.promise));
+    ongoing.length = 0;
+    item.promise = fn();
+    ongoing.push(item);
+  }
+};
+
 const mapToValue = path => {
   const name = path.split('/').slice(-2, -1)[0];
 
@@ -88,12 +105,12 @@ class ProxyToFS {
     let self;
 
     if (path.slice(-1) !== '/') {
-      throw new Error(`path must end with a '/'`);
+      path += '/';
     }
 
     return self = new Proxy(this, {
       set: (object, key, value) => {
-        const promise = (async () => {
+        const saveAsync = async () => {
           if (onWrite) {
             const write = await onWrite({
               path: path,
@@ -122,11 +139,11 @@ class ProxyToFS {
           } else if (typeof value === 'string') {
             await _writeFile.default.bind({
               fs
-            })(path + key, value);
+            })(path + key, value, 'utf8');
           }
-        })();
+        };
 
-        ongoing.push(promise);
+        setPending(path + key, 'set', saveAsync);
         return true;
       },
       get: (object, key) => {
@@ -139,7 +156,7 @@ class ProxyToFS {
         }
 
         if (key === '$promise') {
-          $promise = Promise.all(ongoing);
+          $promise = Promise.all(ongoing.map(x => x.promise));
           return $promise;
         }
 
@@ -149,7 +166,7 @@ class ProxyToFS {
           }
 
           const fn = async () => {
-            await Promise.all(ongoing);
+            await Promise.all(ongoing.map(x => x.promise));
 
             if (onRead) {
               const read = await onRead({
@@ -211,7 +228,11 @@ class ProxyToFS {
           fs
         })(path + key);
 
-        ongoing.push(operation());
+        ongoing.push({
+          path: path + key,
+          action: 'delete',
+          promise: operation()
+        });
         return true;
       },
       ownKeys: object => {

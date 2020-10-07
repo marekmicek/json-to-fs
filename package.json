@@ -1,14 +1,23 @@
 {
   "name": "proxy-to-fs",
-  "version": "1.0.0-alpha.1",
+  "version": "1.0.0-alpha.2",
   "description": "Allows you to manage files on a file system by manipulating js object.",
   "main": "dist/ProxyToFS.js",
+  "module": "src/ProxyToFS.js",
   "scripts": {
     "test": "jest",
     "build": "npx babel src --out-dir dist"
   },
   "author": "Marek Micek <mmicek@happns.io>",
   "license": "MIT",
+  "keywords": [
+    "files",
+    "file",
+    "fs",
+    "filesystem",
+    "proxy",
+    "browserfs"
+  ],
   "dependencies": {
     "mime-types": "^2.1.26"
   },
